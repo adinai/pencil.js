@@ -174,7 +174,10 @@ export default class Container extends EventEmitter {
      * @return {Container}
      */
     getTarget (position) {
-        const relativePosition = position.clone().subtract(this.position);
+        const anchor = this.getOriginPosition().add(this.options.rotationAnchor).add(this.position);
+        const rotatedPosition = position.clone().rotate(this.options.rotation, anchor);
+        const withOriginPosition = rotatedPosition.clone().add(this.getOriginPosition());
+        const relativePosition = rotatedPosition.clone().subtract(this.position);
 
         let lastHovered = null;
         let lookup = this.children.length - 1;
@@ -185,13 +188,13 @@ export default class Container extends EventEmitter {
 
         if (lastHovered) {
             if (lastHovered.options.zIndex < 0 && this === lastHovered.parent) {
-                return (this.isHover(position) && this) || lastHovered;
+                return (this.isHover(withOriginPosition) && this) || lastHovered;
             }
 
             return lastHovered;
         }
 
-        return (this.isHover(position) && this) || null;
+        return (this.isHover(withOriginPosition) && this) || null;
     }
 
     /**
@@ -205,11 +208,11 @@ export default class Container extends EventEmitter {
             ctx.save();
             ctx.translate(truncate(this.position.x), truncate(this.position.y));
 
-            if (this.options.rotation) {
-                const anchorX = truncate(this.options.rotationAnchor);
-                const anchorY = truncate(this.options.rotationAnchor);
+            if (this.options.rotation && this.options.rotationAnchor instanceof Position) {
+                const anchorX = truncate(this.options.rotationAnchor.x);
+                const anchorY = truncate(this.options.rotationAnchor.y);
                 ctx.translate(anchorX, anchorY);
-                ctx.rotate(this.options.rotation * (Math.PI / 180));
+                ctx.rotate(this.options.rotation * radianCircle);
                 ctx.translate(-anchorX, -anchorY);
             }
 
@@ -219,7 +222,11 @@ export default class Container extends EventEmitter {
             this.children.slice(0, pivotIndex).forEach(child => child.render(ctx));
 
             if (drawing) {
+                ctx.save();
+                const originPos = this.getOriginPosition();
+                ctx.translate(truncate(-originPos.x), truncate(-originPos.y));
                 drawing();
+                ctx.restore();
             }
 
             this.children.slice(pivotIndex).forEach(child => child.render(ctx));
@@ -229,9 +236,14 @@ export default class Container extends EventEmitter {
         return this;
     }
 
+    getOriginPosition () {
+        return this.options.origin.clone();
+    }
+
     /**
      * @typedef {Object} ContainerOptions
      * @prop {Boolean} [shown=true] - Is shown
+     * @prop {Position} origin -
      * @prop {Number} [rotation=0] - Rotation in degree (clockwise)
      * @prop {Position} [rotationAnchor=new Position(0, 0)] - Center of rotation relative to this position
      * @prop {Number} [zIndex=0] -
@@ -242,6 +254,7 @@ export default class Container extends EventEmitter {
     static get defaultOptions () {
         return {
             shown: true,
+            origin: new Position(),
             rotation: 0,
             rotationAnchor: new Position(),
             zIndex: 1,

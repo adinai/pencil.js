@@ -27,8 +27,7 @@ export default class Rectangle extends Component {
      * @return {Rectangle} Itself
      */
     trace (ctx) {
-        const originPos = this.getOriginPosition();
-        ctx.rect(truncate(-originPos.x), truncate(-originPos.y), truncate(this.width), truncate(this.height));
+        ctx.rect(0, 0, truncate(this.width), truncate(this.height));
         return this;
     }
 
